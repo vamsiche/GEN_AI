@@ -254,3 +254,4 @@ if st.session_state.api_valid and uploaded_file:
             st.markdown("<div style='clear:both;'></div>", unsafe_allow_html=True)
 else:
     st.info("🔒 Please enter and validate your API key in the sidebar to unlock PDF upload.")
+
