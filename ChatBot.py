@@ -9,7 +9,7 @@ import datetime  # For dynamic greetings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI  # LLM + embeddings
 from langchain_community.vectorstores.faiss import FAISS  # FAISS vector store for semantic search
-from langchain.chains.llm import LLMChain
+from langchain_core.output_parsers import StrOutputParser
 from langchain.prompts import PromptTemplate  # For structured prompts
 
 # Optional OCR (for scanned PDFs)
@@ -163,7 +163,11 @@ prompt_template = PromptTemplate(
         "If only one answer is needed, still reply as Q1/A1."
     )
 )
-qa_chain = LLMChain(llm=client, prompt=prompt_template) if client else None
+qa_chain = (
+    prompt_template
+    | client
+    | StrOutputParser()
+) if client else None
 
 
 # Function: Process PDF
@@ -219,7 +223,10 @@ def answer_question(vector_store, question):
         docs = vector_store.similarity_search(question, k=3)
         context = "\n".join([doc.page_content for doc in docs])
         # Generate answer using QA chain
-        answer = qa_chain.run(context=context, question=question)
+answer = qa_chain.invoke({
+    "context": context,
+    "question": question
+})
         # Save Q&A in session state
         st.session_state.chat_history.append({"question": question, "answer": answer})
         return answer
@@ -300,5 +307,6 @@ if st.session_state.get("documentation", False):
 
 if st.session_state.get("test_mode", False):
     st.warning("⚠️ Test mode is enabled.")
+
 
 
