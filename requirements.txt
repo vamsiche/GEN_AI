@@ -1,10 +1,10 @@
 streamlit
 pypdf
 python-dotenv
+
 langchain-core
 langchain-community
 langchain-text-splitters
 langchain-google-genai
+
 faiss-cpu
-pdf2image
-pytesseract
