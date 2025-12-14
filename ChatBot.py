@@ -14,9 +14,6 @@ from langchain_community.vectorstores.faiss import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-from pdf2image import convert_from_bytes
-import pytesseract
-
 
 # --------------------------------------------------
 # Logging
@@ -27,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 # --------------------------------------------------
-# Asyncio fix
+# Asyncio fix (Streamlit / Windows safe)
 # --------------------------------------------------
 
 try:
@@ -37,14 +34,14 @@ except RuntimeError:
 
 
 # --------------------------------------------------
-# Env
+# Load environment variables
 # --------------------------------------------------
 
 load_dotenv()
 
 
 # --------------------------------------------------
-# Session state
+# Streamlit session state
 # --------------------------------------------------
 
 if "test_mode" not in st.session_state:
@@ -62,21 +59,26 @@ if "api_valid" not in st.session_state:
 
 
 # --------------------------------------------------
-# Page config (UNCHANGED)
+# Page configuration (UNCHANGED UI)
 # --------------------------------------------------
 
-st.set_page_config(page_title="PDF Chatbot", page_icon="🤖", layout="centered")
+st.set_page_config(
+    page_title="PDF Chatbot",
+    page_icon="🤖",
+    layout="centered"
+)
+
 st.title("👾 PDF ChatBot Assistant 📚✨")
 
 
 # --------------------------------------------------
-# Greeting (UNCHANGED)
+# Greeting (UNCHANGED UI)
 # --------------------------------------------------
 
 hour = datetime.datetime.now().hour
 if hour < 12:
     greeting = "🌅 Good Morning! Ready to explore your PDFs?"
-elif 12 <= hour < 18:
+elif hour < 18:
     greeting = "☀️ Good Afternoon! Let's dive into your PDF content!"
 else:
     greeting = "🌙 Good Evening! Ready to get answers from your PDFs?"
@@ -86,10 +88,11 @@ st.markdown("📂 **Upload a PDF file in the left sidebar** and 💡 **ask quest
 
 
 # --------------------------------------------------
-# Sidebar — API Key (UNCHANGED)
+# Sidebar — API Key
 # --------------------------------------------------
 
 st.sidebar.header("🔑 API Key Setup")
+
 st.session_state.user_api_key = st.sidebar.text_input(
     "Enter your Gemini API Key:",
     value=st.session_state.user_api_key,
@@ -106,15 +109,15 @@ if st.sidebar.button("✅ Validate API Key"):
                 model="gemini-2.5-flash"
             )
             test_client.invoke("Hello")
-            st.sidebar.success("API Key is valid! You can now upload PDFs.")
             st.session_state.api_valid = True
+            st.sidebar.success("API Key is valid! You can now upload PDFs.")
         except Exception:
-            st.sidebar.error("API key is not valid ❌")
             st.session_state.api_valid = False
+            st.sidebar.error("API key is not valid ❌")
 
 
 # --------------------------------------------------
-# Sidebar — Upload
+# Sidebar — PDF Upload
 # --------------------------------------------------
 
 uploaded_file = (
@@ -124,7 +127,7 @@ uploaded_file = (
 
 
 # --------------------------------------------------
-# Sidebar — Chat history (UNCHANGED)
+# Sidebar — Chat History
 # --------------------------------------------------
 
 with st.sidebar.expander("📝 Chat History", expanded=False):
@@ -142,7 +145,7 @@ if st.sidebar.button("🗑️ Clear Chat History"):
 
 
 # --------------------------------------------------
-# LLM + Embeddings
+# Initialize LLM and embeddings
 # --------------------------------------------------
 
 if st.session_state.api_valid:
@@ -183,7 +186,7 @@ qa_chain = (
 
 
 # --------------------------------------------------
-# PDF processing (UNCHANGED BEHAVIOR)
+# PDF Processing (OCR REMOVED)
 # --------------------------------------------------
 
 def process_pdf(file):
@@ -198,13 +201,8 @@ def process_pdf(file):
                     text += extracted + "\n"
 
             if not text.strip():
-                st.warning("No extractable text found, trying OCR...")
-                images = convert_from_bytes(file.read())
-                for img in images:
-                    text += pytesseract.image_to_string(img)
-
-            if not text.strip():
-                raise ValueError("No text extracted from PDF.")
+                st.error("❌ This PDF appears to be scanned images. OCR is disabled.")
+                return None
 
             splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1000,
@@ -220,13 +218,13 @@ def process_pdf(file):
 
 
 # --------------------------------------------------
-# Q&A
+# Question Answering
 # --------------------------------------------------
 
 def answer_question(vector_store, question):
     try:
         docs = vector_store.similarity_search(question, k=3)
-        context = "\n".join(d.page_content for d in docs)
+        context = "\n".join(doc.page_content for doc in docs)
 
         answer = qa_chain.invoke({
             "context": context,
@@ -237,6 +235,7 @@ def answer_question(vector_store, question):
             "question": question,
             "answer": answer
         })
+
         return answer
 
     except Exception as e:
@@ -245,7 +244,7 @@ def answer_question(vector_store, question):
 
 
 # --------------------------------------------------
-# Main UI logic (UNCHANGED)
+# Main App Logic (UNCHANGED UI)
 # --------------------------------------------------
 
 if st.session_state.api_valid and uploaded_file:
@@ -264,13 +263,37 @@ if st.session_state.api_valid and uploaded_file:
 
         for qa in reversed(st.session_state.chat_history):
             st.markdown(
-                f"<div style='background-color:#d1e7dd; padding:10px; border-radius:10px; "
-                f"margin:5px; text-align:right; max-width:70%; float:right;'>🧑 {qa['question']}</div>",
+                f"""
+                <div style="
+                    background-color:#0d6efd;
+                    color:#ffffff;
+                    padding:12px;
+                    border-radius:12px;
+                    margin:5px;
+                    text-align:right;
+                    max-width:70%;
+                    float:right;
+                ">
+                    🧑 {qa['question']}
+                </div>
+                """,
                 unsafe_allow_html=True
             )
             st.markdown(
-                f"<div style='background-color:#f0f2f6; padding:10px; border-radius:10px; "
-                f"margin:5px; text-align:left; max-width:70%; float:left;'>🤖 {qa['answer']}</div>",
+                f"""
+                <div style="
+                    background-color:#1e1e1e;
+                    color:#ffffff;
+                    padding:12px;
+                    border-radius:12px;
+                    margin:5px;
+                    text-align:left;
+                    max-width:70%;
+                    float:left;
+                ">
+                    🤖 {qa['answer']}
+                </div>
+                """,
                 unsafe_allow_html=True
             )
             st.markdown("<div style='clear:both;'></div>", unsafe_allow_html=True)
