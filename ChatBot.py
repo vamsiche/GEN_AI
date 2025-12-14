@@ -9,7 +9,7 @@ import datetime  # For dynamic greetings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI  # LLM + embeddings
 from langchain_community.vectorstores.faiss import FAISS  # FAISS vector store for semantic search
-from langchain.chains import LLMChain  # Chain for Q&A
+from langchain.chains.llm import LLMChain
 from langchain.prompts import PromptTemplate  # For structured prompts
 
 # Optional OCR (for scanned PDFs)
@@ -300,4 +300,5 @@ if st.session_state.get("documentation", False):
 
 if st.session_state.get("test_mode", False):
     st.warning("⚠️ Test mode is enabled.")
+
 
