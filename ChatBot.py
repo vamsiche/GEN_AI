@@ -1,5 +1,5 @@
 import streamlit as st
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 import asyncio
 import os
 import logging
@@ -275,3 +275,4 @@ if st.session_state.api_valid and uploaded_file:
 
 else:
     st.info("Enter API key and upload a PDF to begin.")
+
