@@ -12,7 +12,7 @@ from langchain_google_genai import (
     ChatGoogleGenerativeAI
 )
 from langchain_community.vectorstores.faiss import FAISS
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 from pdf2image import convert_from_bytes
@@ -275,4 +275,5 @@ if st.session_state.api_valid and uploaded_file:
 
 else:
     st.info("Enter API key and upload a PDF to begin.")
+
 
