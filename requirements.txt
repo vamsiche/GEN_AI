@@ -1,8 +1,10 @@
-streamlit
-langchain>=0.1.16
-langchain-community>=0.0.24
-langchain-google-genai>=0.1.14
+langchain-core
+langchain-community
+langchain-text-splitters
+langchain-google-genai
 faiss-cpu
-PyPDF2==3.0.1
+streamlit
+pypdf
 python-dotenv
-pandas
+pytesseract
+pdf2image
