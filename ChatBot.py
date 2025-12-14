@@ -15,35 +15,23 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 
-# --------------------------------------------------
 # Logging
-# --------------------------------------------------
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# --------------------------------------------------
-# Asyncio fix (Streamlit / Windows safe)
-# --------------------------------------------------
-
+# Asyncio fix
 try:
     asyncio.get_running_loop()
 except RuntimeError:
     asyncio.set_event_loop(asyncio.new_event_loop())
 
 
-# --------------------------------------------------
-# Load environment variables
-# --------------------------------------------------
-
+# Load env vars
 load_dotenv()
 
 
-# --------------------------------------------------
-# Streamlit session state
-# --------------------------------------------------
-
+# Session state
 if "test_mode" not in st.session_state:
     st.session_state.test_mode = False
 if "documentation" not in st.session_state:
@@ -58,23 +46,16 @@ if "api_valid" not in st.session_state:
     st.session_state.api_valid = False
 
 
-# --------------------------------------------------
-# Page configuration (UNCHANGED UI)
-# --------------------------------------------------
-
+# Page config
 st.set_page_config(
     page_title="PDF Chatbot",
     page_icon="🤖",
     layout="centered"
 )
-
 st.title("👾 PDF ChatBot Assistant 📚✨")
 
 
-# --------------------------------------------------
-# Greeting (UNCHANGED UI)
-# --------------------------------------------------
-
+# Greeting
 hour = datetime.datetime.now().hour
 if hour < 12:
     greeting = "🌅 Good Morning! Ready to explore your PDFs?"
@@ -87,12 +68,8 @@ st.markdown(f"### {greeting}")
 st.markdown("📂 **Upload a PDF file in the left sidebar** and 💡 **ask questions about its content**.👾")
 
 
-# --------------------------------------------------
-# Sidebar — API Key
-# --------------------------------------------------
-
+# Sidebar – API key
 st.sidebar.header("🔑 API Key Setup")
-
 st.session_state.user_api_key = st.sidebar.text_input(
     "Enter your Gemini API Key:",
     value=st.session_state.user_api_key,
@@ -116,20 +93,14 @@ if st.sidebar.button("✅ Validate API Key"):
             st.sidebar.error("API key is not valid ❌")
 
 
-# --------------------------------------------------
-# Sidebar — PDF Upload
-# --------------------------------------------------
-
+# Sidebar – PDF upload
 uploaded_file = (
     st.sidebar.file_uploader("📂 Upload your PDF", type=["pdf"])
     if st.session_state.api_valid else None
 )
 
 
-# --------------------------------------------------
-# Sidebar — Chat History
-# --------------------------------------------------
-
+# Sidebar – Chat history
 with st.sidebar.expander("📝 Chat History", expanded=False):
     if st.session_state.chat_history:
         for i, qa in enumerate(reversed(st.session_state.chat_history), 1):
@@ -144,10 +115,7 @@ if st.sidebar.button("🗑️ Clear Chat History"):
     st.sidebar.success("Chat history cleared.")
 
 
-# --------------------------------------------------
-# Initialize LLM and embeddings
-# --------------------------------------------------
-
+# LLM + embeddings
 if st.session_state.api_valid:
     llm = ChatGoogleGenerativeAI(
         google_api_key=st.session_state.user_api_key,
@@ -162,10 +130,7 @@ else:
     embeddings = None
 
 
-# --------------------------------------------------
-# Prompt (UNCHANGED CONTENT)
-# --------------------------------------------------
-
+# Prompt
 prompt = PromptTemplate(
     input_variables=["context", "question"],
     template=(
@@ -185,10 +150,7 @@ qa_chain = (
 ) if llm else None
 
 
-# --------------------------------------------------
-# PDF Processing (OCR REMOVED)
-# --------------------------------------------------
-
+# PDF processing
 def process_pdf(file):
     try:
         with st.spinner("Processing PDF..."):
@@ -201,7 +163,7 @@ def process_pdf(file):
                     text += extracted + "\n"
 
             if not text.strip():
-                st.error("❌ This PDF appears to be scanned images. OCR is disabled.")
+                st.error("❌ This PDF is scanned. OCR is disabled.")
                 return None
 
             splitter = RecursiveCharacterTextSplitter(
@@ -217,10 +179,7 @@ def process_pdf(file):
         return None
 
 
-# --------------------------------------------------
-# Question Answering
-# --------------------------------------------------
-
+# Answer question
 def answer_question(vector_store, question):
     try:
         docs = vector_store.similarity_search(question, k=3)
@@ -235,7 +194,6 @@ def answer_question(vector_store, question):
             "question": question,
             "answer": answer
         })
-
         return answer
 
     except Exception as e:
@@ -243,10 +201,7 @@ def answer_question(vector_store, question):
         return None
 
 
-# --------------------------------------------------
-# Main App Logic (UNCHANGED UI)
-# --------------------------------------------------
-
+# Main app
 if st.session_state.api_valid and uploaded_file:
     vector_store = process_pdf(uploaded_file)
 
