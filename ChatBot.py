@@ -6,7 +6,7 @@ import logging  # Logging errors and info
 from dotenv import load_dotenv  # Load environment variables from .env
 import datetime  # For dynamic greetings
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter  # Split text into chunks
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI  # LLM + embeddings
 from langchain_community.vectorstores.faiss import FAISS  # FAISS vector store for semantic search
 from langchain.chains import LLMChain  # Chain for Q&A
@@ -300,3 +300,4 @@ if st.session_state.get("documentation", False):
 
 if st.session_state.get("test_mode", False):
     st.warning("⚠️ Test mode is enabled.")
+
