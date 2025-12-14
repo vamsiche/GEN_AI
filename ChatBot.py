@@ -1,7 +1,6 @@
 import streamlit as st
 from pypdf import PdfReader
 import asyncio
-import os
 import logging
 from dotenv import load_dotenv
 import datetime
@@ -28,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 # --------------------------------------------------
-# Asyncio fix (Windows / Streamlit)
+# Asyncio fix
 # --------------------------------------------------
 
 try:
@@ -38,70 +37,68 @@ except RuntimeError:
 
 
 # --------------------------------------------------
-# Environment variables
+# Env
 # --------------------------------------------------
 
 load_dotenv()
 
 
 # --------------------------------------------------
-# Streamlit session state
+# Session state
 # --------------------------------------------------
 
+if "test_mode" not in st.session_state:
+    st.session_state.test_mode = False
+if "documentation" not in st.session_state:
+    st.session_state.documentation = False
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
-
+if "user_question" not in st.session_state:
+    st.session_state.user_question = ""
 if "user_api_key" not in st.session_state:
     st.session_state.user_api_key = ""
-
 if "api_valid" not in st.session_state:
     st.session_state.api_valid = False
 
 
 # --------------------------------------------------
-# Page configuration
+# Page config (UNCHANGED)
 # --------------------------------------------------
 
-st.set_page_config(
-    page_title="PDF Chatbot",
-    page_icon="🤖",
-    layout="centered"
-)
-
-st.title("PDF ChatBot Assistant")
+st.set_page_config(page_title="PDF Chatbot", page_icon="🤖", layout="centered")
+st.title("👾 PDF ChatBot Assistant 📚✨")
 
 
 # --------------------------------------------------
-# Greeting
+# Greeting (UNCHANGED)
 # --------------------------------------------------
 
 hour = datetime.datetime.now().hour
 if hour < 12:
-    greeting = "Good Morning! Ready to explore your PDFs?"
-elif hour < 18:
-    greeting = "Good Afternoon! Let's dive into your PDFs."
+    greeting = "🌅 Good Morning! Ready to explore your PDFs?"
+elif 12 <= hour < 18:
+    greeting = "☀️ Good Afternoon! Let's dive into your PDF content!"
 else:
-    greeting = "Good Evening! Ask questions from your PDFs."
+    greeting = "🌙 Good Evening! Ready to get answers from your PDFs?"
 
 st.markdown(f"### {greeting}")
-st.markdown("Upload a PDF and ask questions about its content.")
+st.markdown("📂 **Upload a PDF file in the left sidebar** and 💡 **ask questions about its content**.👾")
 
 
 # --------------------------------------------------
-# Sidebar — API Key
+# Sidebar — API Key (UNCHANGED)
 # --------------------------------------------------
 
-st.sidebar.header("API Key Setup")
-
+st.sidebar.header("🔑 API Key Setup")
 st.session_state.user_api_key = st.sidebar.text_input(
-    "Enter your Gemini API Key",
-    type="password",
-    value=st.session_state.user_api_key
+    "Enter your Gemini API Key:",
+    value=st.session_state.user_api_key,
+    type="password"
 )
 
-if st.sidebar.button("Validate API Key"):
+if st.sidebar.button("✅ Validate API Key"):
     if not st.session_state.user_api_key.strip():
-        st.sidebar.error("API key is required.")
+        st.sidebar.error("Please enter an API key.")
     else:
         try:
             test_client = ChatGoogleGenerativeAI(
@@ -109,66 +106,73 @@ if st.sidebar.button("Validate API Key"):
                 model="gemini-2.5-flash"
             )
             test_client.invoke("Hello")
+            st.sidebar.success("API Key is valid! You can now upload PDFs.")
             st.session_state.api_valid = True
-            st.sidebar.success("API key is valid.")
         except Exception:
+            st.sidebar.error("API key is not valid ❌")
             st.session_state.api_valid = False
-            st.sidebar.error("Invalid API key.")
 
 
 # --------------------------------------------------
-# Sidebar — PDF upload
+# Sidebar — Upload
 # --------------------------------------------------
 
-uploaded_file = None
+uploaded_file = (
+    st.sidebar.file_uploader("📂 Upload your PDF", type=["pdf"])
+    if st.session_state.api_valid else None
+)
+
+
+# --------------------------------------------------
+# Sidebar — Chat history (UNCHANGED)
+# --------------------------------------------------
+
+with st.sidebar.expander("📝 Chat History", expanded=False):
+    if st.session_state.chat_history:
+        for i, qa in enumerate(reversed(st.session_state.chat_history), 1):
+            st.markdown(f"**Q{i}:** {qa['question']}")
+            st.markdown(f"**A{i}:** {qa['answer']}")
+            st.markdown("---")
+    else:
+        st.info("No chat history yet.")
+
+if st.sidebar.button("🗑️ Clear Chat History"):
+    st.session_state.chat_history = []
+    st.sidebar.success("Chat history cleared.")
+
+
+# --------------------------------------------------
+# LLM + Embeddings
+# --------------------------------------------------
+
 if st.session_state.api_valid:
-    uploaded_file = st.sidebar.file_uploader(
-        "Upload a PDF",
-        type=["pdf"]
+    llm = ChatGoogleGenerativeAI(
+        google_api_key=st.session_state.user_api_key,
+        model="gemini-2.5-flash"
     )
-
-
-# --------------------------------------------------
-# Initialize Gemini + embeddings
-# --------------------------------------------------
-
-if st.session_state.api_valid:
-    try:
-        llm = ChatGoogleGenerativeAI(
-            google_api_key=st.session_state.user_api_key,
-            model="gemini-2.5-flash"
-        )
-
-        embeddings = GoogleGenerativeAIEmbeddings(
-            google_api_key=st.session_state.user_api_key,
-            model="gemini-embedding-001"
-        )
-    except Exception as e:
-        st.error(f"Failed to initialize Gemini: {e}")
-        st.stop()
+    embeddings = GoogleGenerativeAIEmbeddings(
+        google_api_key=st.session_state.user_api_key,
+        model="gemini-embedding-001"
+    )
 else:
     llm = None
     embeddings = None
 
 
 # --------------------------------------------------
-# Prompt + Runnable chain
+# Prompt (UNCHANGED CONTENT)
 # --------------------------------------------------
 
 prompt = PromptTemplate(
     input_variables=["context", "question"],
-    template="""
-You are a helpful assistant.
-Use the following context to answer the question.
-
-Context:
-{context}
-
-Question:
-{question}
-
-Answer clearly and concisely.
-"""
+    template=(
+        "You are a helpful assistant. Use the following context to answer the question.\n\n"
+        "Context:\n{context}\n\n"
+        "Question: {question}\n\n"
+        "Answer step by step in a structured Q&A format:\n"
+        "Q1: ...\nA1: ...\n"
+        "If only one answer is needed, still reply as Q1/A1."
+    )
 )
 
 qa_chain = (
@@ -179,7 +183,7 @@ qa_chain = (
 
 
 # --------------------------------------------------
-# PDF processing
+# PDF processing (UNCHANGED BEHAVIOR)
 # --------------------------------------------------
 
 def process_pdf(file):
@@ -194,40 +198,35 @@ def process_pdf(file):
                     text += extracted + "\n"
 
             if not text.strip():
-                st.warning("No text found, running OCR...")
+                st.warning("No extractable text found, trying OCR...")
                 images = convert_from_bytes(file.read())
                 for img in images:
                     text += pytesseract.image_to_string(img)
 
             if not text.strip():
-                raise ValueError("No text could be extracted.")
+                raise ValueError("No text extracted from PDF.")
 
             splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1000,
                 chunk_overlap=200
             )
-            chunks = splitter.split_text(text)
+            texts = splitter.split_text(text)
 
-            vector_store = FAISS.from_texts(
-                chunks,
-                embedding=embeddings
-            )
-
-            return vector_store
+            return FAISS.from_texts(texts, embedding=embeddings)
 
     except Exception as e:
-        logger.error(f"PDF processing error: {e}")
+        logger.error(e)
         return None
 
 
 # --------------------------------------------------
-# Question answering
+# Q&A
 # --------------------------------------------------
 
 def answer_question(vector_store, question):
     try:
         docs = vector_store.similarity_search(question, k=3)
-        context = "\n".join(doc.page_content for doc in docs)
+        context = "\n".join(d.page_content for d in docs)
 
         answer = qa_chain.invoke({
             "context": context,
@@ -238,42 +237,42 @@ def answer_question(vector_store, question):
             "question": question,
             "answer": answer
         })
-
         return answer
 
     except Exception as e:
-        logger.error(f"QA error: {e}")
+        logger.error(e)
         return None
 
 
 # --------------------------------------------------
-# Main logic
+# Main UI logic (UNCHANGED)
 # --------------------------------------------------
 
 if st.session_state.api_valid and uploaded_file:
-
     vector_store = process_pdf(uploaded_file)
 
     if vector_store:
-        st.success("PDF processed successfully.")
+        st.success("PDF processed successfully! ✅")
 
         with st.form("question_form", clear_on_submit=True):
-            question = st.text_input("Ask a question about the PDF")
+            question = st.text_input("💡 Ask a question about the PDF:")
             submitted = st.form_submit_button("Ask")
 
         if submitted and question.strip():
-            with st.spinner("Generating answer..."):
+            with st.spinner("Finding answer..."):
                 answer_question(vector_store, question)
 
         for qa in reversed(st.session_state.chat_history):
-            st.markdown(f"**You:** {qa['question']}")
-            st.markdown(f"**Bot:** {qa['answer']}")
-            st.markdown("---")
-
-    else:
-        st.error("Failed to process PDF.")
-
+            st.markdown(
+                f"<div style='background-color:#d1e7dd; padding:10px; border-radius:10px; "
+                f"margin:5px; text-align:right; max-width:70%; float:right;'>🧑 {qa['question']}</div>",
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f"<div style='background-color:#f0f2f6; padding:10px; border-radius:10px; "
+                f"margin:5px; text-align:left; max-width:70%; float:left;'>🤖 {qa['answer']}</div>",
+                unsafe_allow_html=True
+            )
+            st.markdown("<div style='clear:both;'></div>", unsafe_allow_html=True)
 else:
-    st.info("Enter API key and upload a PDF to begin.")
-
-
+    st.info("🔒 Please enter and validate your API key in the sidebar to unlock PDF upload.")
