@@ -1,4 +1,4 @@
-# PDF Chatbot using Gemini and Streamlit
+# RAG Chatbot using Gemini and Streamlit
 
 ## About
 
